@@ -55,7 +55,7 @@ time = 0:dt:T;
 
 % Initial conditions
 % x0 = [x; x_dot; theta; theta_dot]
-x0 = [0; 0; 0.5; 0];   
+x0 = [0; 0; 3.14; 0];   
 x_hat0 = [0; 0; 0; 0]; 
 
 % Init things for this XD
