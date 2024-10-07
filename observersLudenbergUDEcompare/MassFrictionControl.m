@@ -40,12 +40,17 @@ x_hat_L = zeros(2,n);   % State estimate (L observer)
 x_hat_UDE = zeros(2,n); % State estimate (UDE observer)
 ref = ones(1,n);        % Reference signal
 
+dx = zeros(2,n);         % x(1) = position, x(2) = velocity
+dx_hat_L = zeros(2,n);   % State estimate (L observer)
+dx_hat_UDE = zeros(2,n); % State estimate (UDE observer)
+dref = ones(1,n);        % Reference signal
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%% Observer gains %%%%
 
 desired_eigenvalues = [-10, -11];  
 L = place(A', C', desired_eigenvalues)';
-Omega = 5 ;
+Omega = 15 ;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%% Initial conditions %%%%
@@ -53,6 +58,11 @@ Omega = 5 ;
 x(:,1) = [0; -10];
 x_hat_L(:,1) = [0; 0]; 
 x_hat_UDE(:,1) = [0; 0]; 
+
+dx(:,1) = [0; -10];
+dx_hat_L(:,1) = [0; 0]; 
+dx_hat_UDE(:,1) = [0; 0]; 
+
 xi = -Omega * (B_pinv * x(:,1));  % Initial state of UDE observer xi_0
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -78,23 +88,23 @@ for k = 1:n-1
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%% Control loop --- State-space equation with disturbance %%%%
-    dx = A * x(:, k) + B * (u(k) + F_disturbance);    % dx = A*x + B*u
-    x(:, k+1) = x(:, k) + dt * dx;                    % Update system states
+    dx(:, k+1) = A * x(:, k) + B * (u(k) + F_disturbance);    % dx = A*x + B*u
+    x(:, k+1) = x(:, k) + dt * dx(:, k);                    % Update system states
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%% Control loop --- Luenberger Observer (L) %%%%
     y = C * x(:, k);    % Measurement 
-    dx_hat_L = A * x_hat_L(:, k) + B * u(k) + L * (y - C * x_hat_L(:, k));  
-    x_hat_L(:, k+1) = x_hat_L(:, k) + dt * dx_hat_L;  % Update Luenberger observer states
+    dx_hat_L(:, k+1) = A * x_hat_L(:, k) + B * u(k) + L * (y - C * x_hat_L(:, k));  
+    x_hat_L(:, k+1) = x_hat_L(:, k) + dt * dx_hat_L(:, k);  % Update Luenberger observer states
 
 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %%%%% UDE state update (with disturbance compensation) %%%%
-    xi_dot = -Omega * xi - (Omega * Omega * (B_pinv * x_hat_UDE(:,k)) + Omega * (B_pinv * A * x_hat_UDE(:,k))) - Omega * u(k); 
+    xi_dot = -Omega * xi - (Omega * Omega * (B_pinv * x(:,k)) + Omega * (B_pinv * A * x(:,k))) - Omega * u(k); 
     xi = xi + dt * xi_dot;  % Update xi
     w_hat = xi + Omega * (B_pinv * x(:,k));  % w_hat(t) = xi + Omega * B^+ x(t)
-    dx_hat_UDE = A * x(:, k) + B * u(k) + B * w_hat;  
-    x_hat_UDE(:, k+1) = x_hat_UDE(:, k) + dt * dx_hat_UDE;  % Update UDE observer states
+    dx_hat_UDE(:, k+1) = A * x(:, k) + B * u(k) + B * w_hat;  
+    x_hat_UDE(:, k+1) = x_hat_UDE(:, k) + dt * dx_hat_UDE(:, k);  % Update UDE observer states
 
     
 end
@@ -104,21 +114,21 @@ u(end) = u(end-1);  % Control signal stabilization for last deste
 %%%% Plot %%%%
 
 figure
-plot(t, x(1,:), 'b', 'LineWidth', 2); hold on;
-plot(t, x_hat_L(1,:), '-.g', 'LineWidth', 2); hold on;
-plot(t, x_hat_UDE(1,:), '--r', 'LineWidth', 2); hold on;
-plot(t, ref, '--k', 'LineWidth', 1.5);
+plot(t, dx(1,:), 'b', 'LineWidth', 2); hold on;
+plot(t, dx_hat_L(1,:), '-.g', 'LineWidth', 2); hold on;
+plot(t, dx_hat_UDE(1,:), '--r', 'LineWidth', 2); hold on;
+plot(t, 0, '--k', 'LineWidth', 1.5);
 title('Position vs Time');
 ylabel('Position (m)');
-legend('UDE System Response', 'L System Response', 'System Response', 'Reference');
+legend('System Response', 'L System Response', 'UDE System Response', 'Reference');
 grid on
 
 figure
-plot(t, x(2,:), 'b', 'LineWidth', 2); hold on;
-plot(t, x_hat_L(2,:), '-.g', 'LineWidth', 2); hold on;
-plot(t, x_hat_UDE(2,:), '--r', 'LineWidth', 2); hold on;
+plot(t, dx(2,:), 'b', 'LineWidth', 2); hold on;
+plot(t, dx_hat_L(2,:), '-.g', 'LineWidth', 2); hold on;
+plot(t, dx_hat_UDE(2,:), '--r', 'LineWidth', 2); hold on;
 plot(t, 0, '--k', 'LineWidth', 1.5);
 title('Velocity vs Time');
 ylabel('Velocity (m/s)');
-legend('UDE System Response', 'L System Response', 'System Response', 'Reference');
+legend('System Response', 'L System Response', 'UDE System Response', 'Reference');
 grid on
